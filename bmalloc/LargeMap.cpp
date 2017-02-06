@@ -23,17 +23,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#include "XLargeMap.h"
+#include "LargeMap.h"
 #include <utility>
 
 namespace bmalloc {
 
-XLargeRange XLargeMap::remove(size_t alignment, size_t size)
+LargeRange LargeMap::remove(size_t alignment, size_t size)
 {
     size_t alignmentMask = alignment - 1;
 
-    XLargeRange* candidate = m_free.end();
-    for (XLargeRange* it = m_free.begin(); it != m_free.end(); ++it) {
+    LargeRange* candidate = m_free.end();
+    for (LargeRange* it = m_free.begin(); it != m_free.end(); ++it) {
         if (it->size() < size)
             continue;
 
@@ -57,14 +57,14 @@ XLargeRange XLargeMap::remove(size_t alignment, size_t size)
     }
     
     if (candidate == m_free.end())
-        return XLargeRange();
+        return LargeRange();
 
     return m_free.pop(candidate);
 }
 
-void XLargeMap::add(const XLargeRange& range)
+void LargeMap::add(const LargeRange& range)
 {
-    XLargeRange merged = range;
+    LargeRange merged = range;
 
     for (size_t i = 0; i < m_free.size(); ++i) {
         if (!canMerge(merged, m_free[i]))
@@ -74,18 +74,6 @@ void XLargeMap::add(const XLargeRange& range)
     }
     
     m_free.push(merged);
-}
-
-XLargeRange XLargeMap::removePhysical()
-{
-    auto it = std::find_if(m_free.begin(), m_free.end(), [](const XLargeRange& range) {
-        return range.physicalSize();
-    });
-
-    if (it == m_free.end())
-        return XLargeRange();
-
-    return m_free.pop(it);
 }
 
 } // namespace bmalloc

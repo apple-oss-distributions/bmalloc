@@ -23,25 +23,25 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#ifndef XLargeMap_h
-#define XLargeMap_h
+#ifndef LargeMap_h
+#define LargeMap_h
 
+#include "LargeRange.h"
 #include "Vector.h"
-#include "XLargeRange.h"
 #include <algorithm>
 
 namespace bmalloc {
 
-class XLargeMap {
+class LargeMap {
 public:
-    void add(const XLargeRange&);
-    XLargeRange remove(size_t alignment, size_t);
-    XLargeRange removePhysical();
+    void add(const LargeRange&);
+    LargeRange remove(size_t alignment, size_t);
+    Vector<LargeRange>& ranges() { return m_free; }
 
 private:
-    Vector<XLargeRange> m_free;
+    Vector<LargeRange> m_free;
 };
 
 } // namespace bmalloc
 
-#endif // XLargeMap_h
+#endif // LargeMap_h
