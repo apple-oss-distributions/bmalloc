@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Apple Inc. All rights reserved.
+ * Copyright (C) 2017 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,11 +23,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#ifndef Inline_h
-#define Inline_h
+#pragma once
 
-#define INLINE __attribute__((always_inline)) inline
+#include "BExport.h"
+#include <cstddef>
+#include <inttypes.h>
 
-#define NO_INLINE __attribute__((noinline))
+namespace bmalloc {
 
-#endif // Inline_h
+BEXPORT void cryptoRandom(void* buffer, size_t length);
+
+}
+
