@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,32 +25,51 @@
 
 #pragma once
 
-/* BCOMPILER() - the compiler being used to build the project */
-#define BCOMPILER(BFEATURE) (defined BCOMPILER_##BFEATURE && BCOMPILER_##BFEATURE)
+#if ENABLE_PHYSICAL_PAGE_MAP 
 
-/* BCOMPILER_HAS_CLANG_FEATURE() - whether the compiler supports a particular language or library feature. */
-/* http://clang.llvm.org/docs/LanguageExtensions.html#has-feature-and-has-extension */
-#ifdef __has_feature
-#define BCOMPILER_HAS_CLANG_FEATURE(x) __has_feature(x)
-#else
-#define BCOMPILER_HAS_CLANG_FEATURE(x) 0
-#endif
+#include "VMAllocate.h"
+#include <unordered_set>
 
-#define BASAN_ENABLED BCOMPILER_HAS_CLANG_FEATURE(address_sanitizer)
+namespace bmalloc {
 
-/* BCOMPILER(GCC_OR_CLANG) - GNU Compiler Collection or Clang */
+// This class is useful for debugging bmalloc's footprint.
+class PhysicalPageMap {
+public:
 
-#if defined(__GNUC__)
-#define BCOMPILER_GCC_OR_CLANG 1
-#endif
+    void commit(void* ptr, size_t size)
+    {
+        forEachPhysicalPage(ptr, size, [&] (void* ptr) {
+            m_physicalPages.insert(ptr);
+        });
+    }
 
-/* BNO_RETURN */
+    void decommit(void* ptr, size_t size)
+    {
+        forEachPhysicalPage(ptr, size, [&] (void* ptr) {
+            m_physicalPages.erase(ptr);
+        });
+    }
 
-#if !defined(BNO_RETURN) && BCOMPILER(GCC_OR_CLANG)
-#define BNO_RETURN __attribute((__noreturn__))
-#endif
+    size_t footprint()
+    {
+        return static_cast<size_t>(m_physicalPages.size()) * vmPageSizePhysical();
+    }
 
-#if !defined(BNO_RETURN)
-#define BNO_RETURN
-#endif
+private:
+    template <typename F>
+    void forEachPhysicalPage(void* ptr, size_t size, F f)
+    {
+        char* begin = roundUpToMultipleOf(vmPageSizePhysical(), static_cast<char*>(ptr));
+        char* end = roundDownToMultipleOf(vmPageSizePhysical(), static_cast<char*>(ptr) + size);
+        while (begin < end) {
+            f(begin);
+            begin += vmPageSizePhysical();
+        }
+    }
 
+    std::unordered_set<void*> m_physicalPages;
+};
+
+} // namespace bmalloc
+
+#endif // ENABLE_PHYSICAL_PAGE_MAP 

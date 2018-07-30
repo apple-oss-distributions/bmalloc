@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2018 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,37 +20,27 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#include "PerThread.h"
 
-/* BCOMPILER() - the compiler being used to build the project */
-#define BCOMPILER(BFEATURE) (defined BCOMPILER_##BFEATURE && BCOMPILER_##BFEATURE)
+#include "BExport.h"
+#include "Cache.h"
+#include "Heap.h"
 
-/* BCOMPILER_HAS_CLANG_FEATURE() - whether the compiler supports a particular language or library feature. */
-/* http://clang.llvm.org/docs/LanguageExtensions.html#has-feature-and-has-extension */
-#ifdef __has_feature
-#define BCOMPILER_HAS_CLANG_FEATURE(x) __has_feature(x)
-#else
-#define BCOMPILER_HAS_CLANG_FEATURE(x) 0
+namespace bmalloc {
+
+#if !HAVE_PTHREAD_MACHDEP_H
+
+template<> BEXPORT bool PerThreadStorage<PerHeapKind<Cache>>::s_didInitialize = false;
+template<> BEXPORT pthread_key_t PerThreadStorage<PerHeapKind<Cache>>::s_key = 0;
+template<> BEXPORT std::once_flag PerThreadStorage<PerHeapKind<Cache>>::s_onceFlag = { };
+
+template<> BEXPORT bool PerThreadStorage<PerHeapKind<Heap>>::s_didInitialize = false;
+template<> BEXPORT pthread_key_t PerThreadStorage<PerHeapKind<Heap>>::s_key = 0;
+template<> BEXPORT std::once_flag PerThreadStorage<PerHeapKind<Heap>>::s_onceFlag = { };
+
 #endif
 
-#define BASAN_ENABLED BCOMPILER_HAS_CLANG_FEATURE(address_sanitizer)
-
-/* BCOMPILER(GCC_OR_CLANG) - GNU Compiler Collection or Clang */
-
-#if defined(__GNUC__)
-#define BCOMPILER_GCC_OR_CLANG 1
-#endif
-
-/* BNO_RETURN */
-
-#if !defined(BNO_RETURN) && BCOMPILER(GCC_OR_CLANG)
-#define BNO_RETURN __attribute((__noreturn__))
-#endif
-
-#if !defined(BNO_RETURN)
-#define BNO_RETURN
-#endif
-
+} // namespace bmalloc
