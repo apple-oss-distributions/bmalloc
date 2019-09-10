@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,64 +20,55 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef Deallocator_h
-#define Deallocator_h
+#pragma once
 
-#include "BExport.h"
-#include "FixedVector.h"
-#include "SmallPage.h"
-#include <mutex>
+#include "IsoSharedConfig.h"
+#include "IsoSharedPage.h"
+#include "StaticPerProcess.h"
 
 namespace bmalloc {
 
-class Heap;
-class Mutex;
+class AllIsoHeaps;
 
-// Per-cache object deallocator.
-
-class Deallocator {
+class VariadicBumpAllocator {
 public:
-    Deallocator(Heap&);
-    ~Deallocator();
+    VariadicBumpAllocator() = default;
 
-    void deallocate(void*);
-    void scavenge();
-    
-    void processObjectLog(std::unique_lock<Mutex>&);
-    
-    LineCache& lineCache(std::unique_lock<Mutex>&) { return m_lineCache; }
+    VariadicBumpAllocator(char* payloadEnd, unsigned remaining)
+        : m_payloadEnd(payloadEnd)
+        , m_remaining(remaining)
+    {
+    }
+
+    template<unsigned, typename Func>
+    void* allocate(const Func& slowPath);
 
 private:
-    bool deallocateFastCase(void*);
-    BEXPORT void deallocateSlowCase(void*);
-
-    Heap& m_heap;
-    FixedVector<void*, deallocatorLogCapacity> m_objectLog;
-    LineCache m_lineCache; // The Heap removes items from this cache.
+    char* m_payloadEnd { nullptr };
+    unsigned m_remaining { 0 };
 };
 
-inline bool Deallocator::deallocateFastCase(void* object)
-{
-    BASSERT(mightBeLarge(nullptr));
-    if (mightBeLarge(object))
-        return false;
+class IsoSharedHeap : public StaticPerProcess<IsoSharedHeap> {
+public:
+    IsoSharedHeap(std::lock_guard<Mutex>&)
+    {
+    }
 
-    if (m_objectLog.size() == m_objectLog.capacity())
-        return false;
+    template<unsigned>
+    void* allocateNew(bool abortOnFailure);
 
-    m_objectLog.push(object);
-    return true;
-}
+private:
+    template<unsigned>
+    void* allocateSlow(bool abortOnFailure);
 
-inline void Deallocator::deallocate(void* object)
-{
-    if (!deallocateFastCase(object))
-        deallocateSlowCase(object);
-}
+    IsoSharedPage* m_currentPage { nullptr };
+    VariadicBumpAllocator m_allocator;
+};
+DECLARE_STATIC_PER_PROCESS_STORAGE(IsoSharedHeap);
 
 } // namespace bmalloc
 
-#endif // Deallocator_h
+
