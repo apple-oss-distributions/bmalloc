@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,44 +20,13 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "IsoTLSLayout.h"
-
-#include "IsoTLSEntry.h"
+#pragma once
 
 namespace bmalloc {
 
-DEFINE_STATIC_PER_PROCESS_STORAGE(IsoTLSLayout);
-
-IsoTLSLayout::IsoTLSLayout(const std::lock_guard<Mutex>&)
-{
-}
-
-void IsoTLSLayout::add(IsoTLSEntry* entry)
-{
-    static Mutex addingMutex;
-    RELEASE_BASSERT(!entry->m_next);
-    // IsoTLSLayout::head() does not take a lock. So we should emit memory fence to make sure that newly added entry is initialized when it is chained to this linked-list.
-    // Emitting memory fence here is OK since this function is not frequently called.
-    std::lock_guard<Mutex> locking(addingMutex);
-    if (m_head) {
-        RELEASE_BASSERT(m_tail);
-        size_t offset = roundUpToMultipleOf(entry->alignment(), m_tail->extent());
-        RELEASE_BASSERT(offset < UINT_MAX);
-        entry->m_offset = offset;
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-        m_tail->m_next = entry;
-        m_tail = entry;
-    } else {
-        RELEASE_BASSERT(!m_tail);
-        entry->m_offset = 0;
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-        m_head = entry;
-        m_tail = entry;
-    }
-}
+enum class FailureAction { Crash, ReturnNull };
 
 } // namespace bmalloc
-
